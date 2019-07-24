@@ -1,31 +1,31 @@
-# es2015-library-skeleton
+# mindless-route53
 
-[![CircleCI](https://circleci.com/gh/jedwards1211/es2015-library-skeleton.svg?style=svg)](https://circleci.com/gh/jedwards1211/es2015-library-skeleton)
-[![Coverage Status](https://codecov.io/gh/jedwards1211/es2015-library-skeleton/branch/master/graph/badge.svg)](https://codecov.io/gh/jedwards1211/es2015-library-skeleton)
+[![CircleCI](https://circleci.com/gh/jcoreio/mindless-route53.svg?style=svg)](https://circleci.com/gh/jcoreio/mindless-route53)
+[![Coverage Status](https://codecov.io/gh/jcoreio/mindless-route53/branch/master/graph/badge.svg)](https://codecov.io/gh/jcoreio/mindless-route53)
 [![semantic-release](https://img.shields.io/badge/%20%20%F0%9F%93%A6%F0%9F%9A%80-semantic--release-e10079.svg)](https://github.com/semantic-release/semantic-release)
 [![Commitizen friendly](https://img.shields.io/badge/commitizen-friendly-brightgreen.svg)](http://commitizen.github.io/cz-cli/)
-[![npm version](https://badge.fury.io/js/es2015-library-skeleton.svg)](https://badge.fury.io/js/es2015-library-skeleton)
+[![npm version](https://badge.fury.io/js/mindless-route53.svg)](https://badge.fury.io/js/mindless-route53)
 
-This is my personal skeleton for creating an ES2015 library npm package. You are welcome to use it.
+low-mental-load API/CLI for AWS Route 53
 
-## Quick start
+# Node.js API
 
-```sh
-npx 0-60 clone https://github.com/jedwards1211/es2015-library-skeleton.git
-```
+## `findHostedZoneId(options)`
 
-## Tools used
+Finds the Id of the hosted zone whose name is the deepest superdomain of a given `DNSName`.
 
-- babel 7
-- mocha
-- chai
-- istanbul
-- nyc
-- eslint
-- flow
-- prettier
-- husky
-- semantic-release
-- renovate
-- Circle CI
-- Codecov.io
+### `options`
+
+#### `DNSName` (`string`, _required_) the DNSName to search for, which can be
+
+either the exact name of the hosted zone or a subdomain.
+
+#### `PrivateZone` (`boolean`, _optional_) whether to find a private zone
+
+#### `Route53` (`AWS.Route53`, _optional_) a Route53 client with your desired
+
+settings.
+
+### `Returns`
+
+The Id of the hosted zone whose name is the deepest superdomain of the given `DNSName`.

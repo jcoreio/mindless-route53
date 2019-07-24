@@ -1,7 +1,7 @@
 {
-  "name": "es2015-library-skeleton",
+  "name": "mindless-route53",
   "version": "0.0.0-development",
-  "description": "my personal ES2015 library project skeleton",
+  "description": "low-mental-load API/CLI for AWS Route 53",
   "main": "index.js",
   "sideEffects": false,
   "scripts": {
@@ -64,20 +64,23 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/jedwards1211/es2015-library-skeleton.git"
+    "url": "https://github.com/jcoreio/mindless-route53.git"
   },
   "keywords": [
-    "es2015"
+    "aws",
+    "route53",
+    "dns"
   ],
   "author": "Andy Edwards",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/jedwards1211/es2015-library-skeleton/issues"
+    "url": "https://github.com/jcoreio/mindless-route53/issues"
   },
-  "homepage": "https://github.com/jedwards1211/es2015-library-skeleton#readme",
+  "homepage": "https://github.com/jcoreio/mindless-route53#readme",
   "devDependencies": {
     "@babel/cli": "^7.1.5",
     "@babel/core": "^7.1.6",
+    "@babel/node": "^7.5.5",
     "@babel/plugin-proposal-class-properties": "^7.1.0",
     "@babel/plugin-proposal-export-default-from": "^7.0.0",
     "@babel/plugin-proposal-export-namespace-from": "^7.0.0",
@@ -108,6 +111,7 @@
     "husky": "^1.1.4",
     "istanbul": "^0.4.5",
     "lint-staged": "^8.0.4",
+    "lodash": "^4.17.15",
     "mocha": "^6.0.0",
     "nyc": "^13.1.0",
     "prettier": "^1.15.2",
@@ -116,7 +120,8 @@
     "semantic-release": "^15.1.4"
   },
   "dependencies": {
-    "@babel/runtime": "^7.1.5"
+    "@babel/runtime": "^7.1.5",
+    "aws-sdk": "^2.499.0"
   },
   "renovate": {
     "extends": [
