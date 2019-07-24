@@ -101,4 +101,20 @@ describe(`findHostedZoneId`, function() {
       })
     ).to.not.exist
   })
+  it(`throws if response is invalid`, async function(): Promise<void> {
+    const Route53 = {
+      listHostedZonesByName: () => ({
+        promise: () =>
+          Promise.resolve({
+            HostedZones: [
+              {
+                Id: 2,
+                Name: 'foo',
+              },
+            ],
+          }),
+      }),
+    }
+    await expect(findHostedZoneId({ DNSName: 'test', Route53 })).to.be.rejected
+  })
 })

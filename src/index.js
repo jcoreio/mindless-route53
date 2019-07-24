@@ -2,6 +2,8 @@
 
 import AWS from 'aws-sdk'
 
+import { type Zone, ListHostedZonesByNameResponseType } from './AWSTypes'
+
 function regexExtract(s: string, rx: RegExp): ?string {
   const match = rx.exec(s)
   return match ? match[0] : null
@@ -21,34 +23,20 @@ export async function findHostedZoneId(options: {
   const minDNSName = regexExtract(DNSName, /[^.]+\.[^.]+\.$/)
   if (!minDNSName) throw new Error(`Invalid DNSName: ${origDNSName}`)
 
-  type Zone = {
-    Id: string,
-    Name: string,
-    Config: {
-      PrivateZone: boolean,
-    },
-  }
-
   async function* listZones(): AsyncIterable<Zone> {
-    let {
-      HostedZones,
-      IsTruncated,
-      NextDNSName,
-      NextHostedZoneId,
-    } = await Route53.listHostedZonesByName({
+    const repsonse = await Route53.listHostedZonesByName({
       DNSName: minDNSName,
     }).promise()
+    ListHostedZonesByNameResponseType.assert(repsonse)
+    let { HostedZones, IsTruncated, NextDNSName, NextHostedZoneId } = repsonse
     yield* HostedZones
     while (IsTruncated) {
-      ;({
-        HostedZones,
-        IsTruncated,
-        NextDNSName,
-        NextHostedZoneId,
-      } = await Route53.listHostedZonesByName({
+      const repsonse = await Route53.listHostedZonesByName({
         DNSName: NextDNSName,
         HostedZoneId: NextHostedZoneId,
-      }).promise())
+      }).promise()
+      ListHostedZonesByNameResponseType.assert(repsonse)
+      ;({ HostedZones, IsTruncated, NextDNSName, NextHostedZoneId } = repsonse)
       yield* HostedZones
     }
   }

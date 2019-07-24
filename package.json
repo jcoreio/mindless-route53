@@ -96,8 +96,10 @@
     "@jedwards1211/eslint-config": "^2.0.0",
     "@jedwards1211/eslint-config-flow": "^1.0.2",
     "babel-eslint": "^10.0.1",
+    "babel-plugin-flow-runtime": "^0.19.0",
     "babel-plugin-istanbul": "^5.1.0",
     "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
     "codecov": "^3.1.0",
     "copy": "^0.3.2",
     "cross-env": "^5.2.0",
@@ -121,7 +123,8 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.1.5",
-    "aws-sdk": "^2.499.0"
+    "aws-sdk": "^2.499.0",
+    "flow-runtime": "^0.17.0"
   },
   "renovate": {
     "extends": [
