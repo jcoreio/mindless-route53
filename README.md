@@ -8,6 +8,8 @@
 
 low-mental-load API/CLI for AWS Route 53
 
+For our purposes at least, looking up the hosted zone id when upserting a DNS record via script or CLI is a useless waste of time...it can be determined automatically from the DNS name for the record being upserted.
+
 <!-- toc -->
 
 - [Node.js API](#nodejs-api)
