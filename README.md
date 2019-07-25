@@ -16,16 +16,61 @@ Finds the Id of the hosted zone whose name is the deepest superdomain of a given
 
 ### `options`
 
-#### `DNSName` (`string`, _required_) the DNSName to search for, which can be
+#### `DNSName` (`string`, _required_)
+
+the DNSName to search for, which can be
 
 either the exact name of the hosted zone or a subdomain.
 
-#### `PrivateZone` (`boolean`, _optional_) whether to find a private zone
+#### `PrivateZone` (`boolean`, _optional_)
 
-#### `Route53` (`AWS.Route53`, _optional_) a Route53 client with your desired
+whether to find a private zone
+
+#### `Route53` (`AWS.Route53`, _optional_)
+
+a Route53 client with your desired
 
 settings.
 
-### `Returns`
+### Returns
 
 The Id of the hosted zone whose name is the deepest superdomain of the given `DNSName`.
+
+## `upsertRecordSet(options)`
+
+Upserts a single DNS record set.
+
+### `options`
+
+#### `ResourceRecordSet` (`ResourceRecordSet`, _optional_)
+
+a `ResourceRecordSet` as accepted by the AWS SDK for upsert
+(you may provide this or `Name`/`Target`/`TTL`)
+
+#### `Name` (`string`, _optional_)
+
+the name of the record (required if `ResourceRecordSet` isn't given)
+
+#### `Target` (`string | Array<string>`, _optional_)
+
+the IP address value(s) for an A record or DNS name value(s) for a CNAME record (required if `ResourceRecordSet` isn't given)
+
+#### `TTL` (`number`, _optional_)
+
+the time to live (required if `ResourceRecordSet` isn't given)
+
+#### `PrivateZone` (`boolean`, _optional_)
+
+whether to use the private hosted zone
+
+#### `Comment` (`string`, _optional_)
+
+a comment for the upsert
+
+#### `Route53` (`AWS.Route53`, _optional_)
+
+a Route53 client with your desired
+
+### Returns
+
+The result of the `AWS.Route53.changeResourceRecordSets` call.

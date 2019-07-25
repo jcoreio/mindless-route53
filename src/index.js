@@ -1,8 +1,13 @@
 /* @flow */
 
 import AWS from 'aws-sdk'
+import isIp from 'is-ip'
 
-import { type Zone, ListHostedZonesByNameResponseType } from './AWSTypes'
+import {
+  type Zone,
+  ListHostedZonesByNameResponseType,
+  type ResourceRecordSet as _ResourceRecordSet,
+} from './AWSTypes'
 
 function regexExtract(s: string, rx: RegExp): ?string {
   const match = rx.exec(s)
@@ -50,4 +55,64 @@ export async function findHostedZoneId(options: {
     if (best == null || best.Name.length < Name.length) best = zone
   }
   return best ? best.Id : null
+}
+
+export async function upsertRecordSet(options: {
+  Name?: string,
+  Target?: string | Array<string>,
+  TTL?: number,
+  ResourceRecordSet?: _ResourceRecordSet,
+  PrivateZone?: ?boolean,
+  Comment?: string,
+  Route53?: AWS.Route53,
+}): Promise<void> {
+  const { PrivateZone, Comment } = options
+  let { ResourceRecordSet } = options
+  if (!ResourceRecordSet) {
+    const { Name, Target, TTL } = options
+    if (!Name)
+      throw new Error('Name must be provided if ResourceRecordSet is missing')
+    if (!Target || !Target.length)
+      throw new Error('Target must be provided if ResourceRecordSet is missing')
+    if (TTL == null)
+      throw new Error('TTL must be provided if ResourceRecordSet is missing')
+    const Targets = Array.isArray(Target) ? Target : [Target]
+    const targetIsIp = isIp(Targets[0])
+    Targets.forEach((Value: string) => {
+      if (isIp(Value) !== targetIsIp) {
+        throw new Error(
+          'Target array must be all IP addresses or all DNS names'
+        )
+      }
+    })
+    const Type = targetIsIp ? 'A' : 'CNAME'
+
+    ResourceRecordSet = {
+      Name,
+      Type,
+      ResourceRecords: Targets.map(Value => ({ Value })),
+      TTL,
+    }
+  }
+  if (!ResourceRecordSet) throw new Error('this should never happen')
+
+  const Route53 = options.Route53 || new AWS.Route53()
+  const HostedZoneId = await findHostedZoneId({
+    DNSName: ResourceRecordSet.Name,
+    PrivateZone,
+    Route53,
+  })
+
+  return await Route53.changeResourceRecordSets({
+    ChangeBatch: {
+      Changes: [
+        {
+          Action: 'UPSERT',
+          ResourceRecordSet,
+        },
+      ],
+      Comment,
+    },
+    HostedZoneId,
+  }).promise()
 }
