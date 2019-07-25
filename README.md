@@ -8,11 +8,22 @@
 
 low-mental-load API/CLI for AWS Route 53
 
+<!-- toc -->
+
+- [Node.js API](#nodejs-api)
+  - [`findHostedZone(options)`](#findhostedzoneoptions)
+  - [`findHostedZoneId(options)`](#findhostedzoneidoptions)
+  - [`upsertRecordSet(options)`](#upsertrecordsetoptions)
+- [CLI](#cli)
+  - [`mroute53 upsert`](#mroute53-upsert)
+
+<!-- tocstop -->
+
 # Node.js API
 
-## `findHostedZoneId(options)`
+## `findHostedZone(options)`
 
-Finds the Id of the hosted zone whose name is the deepest superdomain of a given `DNSName`.
+Finds the properties of the hosted zone whose name is the deepest superdomain of a given `DNSName`.
 
 ### `options`
 
@@ -34,7 +45,11 @@ settings.
 
 ### Returns
 
-The Id of the hosted zone whose name is the deepest superdomain of the given `DNSName`.
+The properties of the hosted zone whose name is the deepest superdomain of the given `DNSName`.
+
+## `findHostedZoneId(options)`
+
+Like [`findHostedZoneId(options)`](#findhostedzoneidoptions), but just returns the zone id.
 
 ## `upsertRecordSet(options)`
 
@@ -74,3 +89,35 @@ a Route53 client with your desired
 ### Returns
 
 The result of the `AWS.Route53.changeResourceRecordSets` call.
+
+# CLI
+
+You can use the `mindless-route53` or `mroute53` CLI command.
+
+## `mroute53 upsert`
+
+upsert a resource record set
+
+### Usage
+
+```
+mroute53 upsert --name <DNS name> --target <target IP(s) or DNS name(s)> --ttl
+<time to live> [--private] [--comment <comment>] [--region <AWS region>]
+```
+
+### Options
+
+```
+--version      Show version number                                   [boolean]
+--help         Show help                                             [boolean]
+-n, --name     the DNS name for the record set                        [string]
+-t, --target   the target IP address(es) for an A record or DNS name(s) for a
+               CNAME record                                            [array]
+--ttl          the time-to-live for the record                        [number]
+--private      whether to use the private hosted zone
+                                                    [boolean] [default: false]
+-c, --comment  a comment for the change                               [string]
+--region       the AWS region                                         [string]
+-q, --quiet    suppress output                                       [boolean]
+-v, --verbose  enable verbose output                                 [boolean]
+```

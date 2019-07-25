@@ -3,6 +3,10 @@
   "version": "0.0.0-development",
   "description": "low-mental-load API/CLI for AWS Route 53",
   "main": "index.js",
+  "bin": {
+    "mindless-route53": "./cli.js",
+    "mroute53": "./cli.js"
+  },
   "sideEffects": false,
   "scripts": {
     "lint": "eslint src test --cache",
@@ -119,13 +123,14 @@
     "prettier": "^1.15.2",
     "prettier-eslint": "^8.8.2",
     "rimraf": "^2.6.0",
-    "semantic-release": "^15.1.4"
+    "semantic-release": "^15.13.18"
   },
   "dependencies": {
     "@babel/runtime": "^7.1.5",
     "aws-sdk": "^2.499.0",
     "flow-runtime": "^0.17.0",
-    "is-ip": "^3.1.0"
+    "is-ip": "^3.1.0",
+    "yargs": "^13.3.0"
   },
   "renovate": {
     "extends": [
