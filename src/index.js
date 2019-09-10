@@ -14,19 +14,23 @@ function regexExtract(s: string, rx: RegExp): ?string {
   return match ? match[0] : null
 }
 
-export async function findHostedZone(options: {
+export async function findHostedZones(options: {
   DNSName: string,
-  PrivateZone?: ?boolean,
   Route53?: ?AWS.Route53,
-}): Promise<?Zone> {
+}): Promise<{
+  PrivateHostedZone: ?Zone,
+  PublicHostedZone: ?Zone,
+}> {
   const origDNSName = options.DNSName
   const DNSName = options.DNSName.replace(/\.?$/, '.')
-  const PrivateZone = Boolean(options.PrivateZone)
 
   const Route53 = options.Route53 || new AWS.Route53()
 
   const minDNSName = regexExtract(DNSName, /[^.]+\.[^.]+\.$/)
   if (!minDNSName) throw new Error(`Invalid DNSName: ${origDNSName}`)
+
+  let PrivateHostedZone: ?Zone = null
+  let PublicHostedZone: ?Zone = null
 
   async function* listZones(): AsyncIterable<Zone> {
     const repsonse = await Route53.listHostedZonesByName({
@@ -46,15 +50,34 @@ export async function findHostedZone(options: {
     }
   }
 
-  let best: ?Zone
-
   for await (let zone of listZones()) {
     const { Name, Config } = zone
-    if (PrivateZone !== Config.PrivateZone) continue
     if (!DNSName.endsWith(Name)) break
-    if (best == null || best.Name.length < Name.length) best = zone
+    if (Config.PrivateZone) {
+      if (!PrivateHostedZone || Name.length > PrivateHostedZone.Name.length)
+        PrivateHostedZone = zone
+    } else {
+      if (!PublicHostedZone || Name.length > PublicHostedZone.Name.length)
+        PublicHostedZone = zone
+    }
   }
-  return best
+  return { PrivateHostedZone, PublicHostedZone }
+}
+
+export async function findHostedZone({
+  DNSName,
+  PrivateZone,
+  Route53,
+}: {
+  DNSName: string,
+  PrivateZone?: ?boolean,
+  Route53?: ?AWS.Route53,
+}): Promise<?Zone> {
+  const { PrivateHostedZone, PublicHostedZone } = await findHostedZones({
+    DNSName,
+    Route53,
+  })
+  return PrivateZone ? PrivateHostedZone : PublicHostedZone
 }
 
 export async function findHostedZoneId(options: {
@@ -66,12 +89,54 @@ export async function findHostedZoneId(options: {
   return zone ? zone.Id : null
 }
 
+export async function upsertPublicAndPrivateRecords(options: {
+  Name: string,
+  TTL?: number,
+  PublicTarget: string | Array<string>,
+  PrivateTarget: string | Array<string>,
+  PublicHostedZone?: ?Zone,
+  PrivateHostedZone?: ?Zone,
+  Route53?: AWS.Route53,
+  log?: ?(...args: Array<any>) => any,
+  verbose?: ?boolean,
+}): Promise<void> {
+  const { Name, TTL, PublicTarget, PrivateTarget, log, verbose } = options
+  let { PublicHostedZone, PrivateHostedZone, Route53 } = options
+  Route53 = Route53 || new AWS.Route53()
+  if (!PublicHostedZone || !PrivateHostedZone) {
+    ;({ PublicHostedZone, PrivateHostedZone } = await findHostedZones({
+      DNSName: Name,
+      Route53,
+    }))
+    if (!PublicHostedZone && !PrivateHostedZone)
+      throw Error(`unable to find public or private zones for ${Name}`)
+    if (!PublicHostedZone) throw Error(`unable to find public zone for ${Name}`)
+    if (!PrivateHostedZone)
+      throw Error(`unable to find private zone for ${Name}`)
+  }
+  await Promise.all(
+    [true, false].map((privateZone: boolean) =>
+      upsertRecordSet({
+        Name,
+        Target: privateZone ? PrivateTarget : PublicTarget,
+        TTL,
+        PrivateZone: privateZone,
+        HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
+        Route53,
+        log,
+        verbose,
+      })
+    )
+  )
+}
+
 export async function upsertRecordSet(options: {
   Name?: string,
   Target?: string | Array<string>,
   TTL?: number,
   ResourceRecordSet?: _ResourceRecordSet,
   PrivateZone?: ?boolean,
+  HostedZone?: ?Zone,
   Comment?: string,
   Route53?: AWS.Route53,
   log?: ?(...args: Array<any>) => any,
@@ -79,7 +144,7 @@ export async function upsertRecordSet(options: {
 }): Promise<void> {
   const { PrivateZone, Comment, verbose } = options
   const log = options.log || console.error.bind(console) // eslint-disable-line no-console
-  let { ResourceRecordSet } = options
+  let { ResourceRecordSet, HostedZone } = options
   if (!ResourceRecordSet) {
     const { Name, Target, TTL } = options
     if (!Name)
@@ -109,19 +174,21 @@ export async function upsertRecordSet(options: {
   if (!ResourceRecordSet) throw new Error('this should never happen')
 
   const Route53 = options.Route53 || new AWS.Route53()
-  if (verbose) log('Finding hosted zone...')
-  const HostedZone = await findHostedZone({
-    DNSName: ResourceRecordSet.Name,
-    PrivateZone,
-    Route53,
-  })
-  if (!HostedZone) throw new Error('Failed to find an applicable hosted zone')
-  if (verbose)
-    log(
-      `Found hosted zone: ${HostedZone.Id} (${HostedZone.Name} ${
-        HostedZone.Config.PrivateZone ? 'private' : 'public'
-      })`
-    )
+  if (!HostedZone) {
+    if (verbose) log('Finding hosted zone...')
+    HostedZone = await findHostedZone({
+      DNSName: ResourceRecordSet.Name,
+      PrivateZone,
+      Route53,
+    })
+    if (!HostedZone) throw new Error('Failed to find an applicable hosted zone')
+    if (verbose)
+      log(
+        `Found hosted zone: ${HostedZone.Id} (${HostedZone.Name} ${
+          HostedZone.Config.PrivateZone ? 'private' : 'public'
+        })`
+      )
+  }
 
   const changeOpts = {
     ChangeBatch: {
