@@ -1,8 +1,12 @@
 // @flow
 
 import { describe, it } from 'mocha'
-import { expect } from 'chai'
-import { findHostedZoneId, upsertRecordSet } from '../src'
+import { assert, expect } from 'chai'
+import {
+  findHostedZoneId,
+  upsertRecordSet,
+  upsertPublicAndPrivateRecords,
+} from '../src'
 
 const HOSTED_ZONES = [
   {
@@ -306,5 +310,121 @@ describe(`upsertRecordSet`, function() {
         HostedZoneId: '/hostedzone/BBBBBBBBBBBBB',
       },
     ])
+  })
+  it('throws when hosted zone could not be found', async function(): Promise<void> {
+    await expect(
+      upsertRecordSet({
+        Name: 'host.non.existent.domain',
+        Target: '1.2.3.4',
+        TTL: 60,
+        Route53,
+        log: () => {},
+      })
+    ).to.be.eventually.rejectedWith('Failed to find an applicable hosted zone')
+  })
+})
+
+describe(`upsertPublicAndPrivateRecords`, function() {
+  beforeEach(() => {
+    changeResourceRecordSetsArgs.length = 0
+  })
+
+  it(`works for IP addresses`, async function(): Promise<void> {
+    const Name = 'toyfactory.jcore.io'
+    const PrivateTarget = '1.2.3.4'
+    const PublicTarget = '5.6.7.8'
+    const TTL = 360
+
+    await upsertPublicAndPrivateRecords({
+      Name,
+      TTL,
+      PrivateTarget,
+      PublicTarget,
+      Route53,
+      log: () => {},
+    })
+
+    const expectedChange = (privateZone: boolean) => ({
+      ChangeBatch: {
+        Changes: [
+          {
+            Action: 'UPSERT',
+            ResourceRecordSet: {
+              Name,
+              Type: 'A',
+              ResourceRecords: [
+                { Value: privateZone ? PrivateTarget : PublicTarget },
+              ],
+              TTL,
+            },
+          },
+        ],
+        Comment: undefined,
+      },
+      HostedZoneId: privateZone
+        ? '/hostedzone/BBBBBBBBBBBBB'
+        : '/hostedzone/AAAAAAAAAAAAA',
+    })
+
+    expect(changeResourceRecordSetsArgs.length).to.equal(2)
+    const privateChange = changeResourceRecordSetsArgs.find(
+      change => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
+    )
+    const publicChange = changeResourceRecordSetsArgs.find(
+      change => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
+    )
+    assert(privateChange, 'could not find change set for private zone')
+    assert(publicChange, 'could not find change set for public zone')
+    expect(privateChange).to.deep.equal(expectedChange(true))
+    expect(publicChange).to.deep.equal(expectedChange(false))
+  })
+  it(`works for DNS names`, async function(): Promise<void> {
+    const Name = 'toyfactory.jcore.io'
+    const PrivateTarget = 'nlb--blah-blah-blah-private.jcore.io'
+    const PublicTarget = 'nlb--blah-blah-blah-public.jcore.io'
+    const TTL = 360
+
+    await upsertPublicAndPrivateRecords({
+      Name,
+      TTL,
+      PrivateTarget,
+      PublicTarget,
+      Route53,
+      log: () => {},
+    })
+
+    const expectedChange = (privateZone: boolean) => ({
+      ChangeBatch: {
+        Changes: [
+          {
+            Action: 'UPSERT',
+            ResourceRecordSet: {
+              Name,
+              Type: 'CNAME',
+              ResourceRecords: [
+                { Value: privateZone ? PrivateTarget : PublicTarget },
+              ],
+              TTL,
+            },
+          },
+        ],
+        Comment: undefined,
+      },
+      HostedZoneId: privateZone
+        ? '/hostedzone/BBBBBBBBBBBBB'
+        : '/hostedzone/AAAAAAAAAAAAA',
+    })
+
+    expect(changeResourceRecordSetsArgs.length).to.equal(2)
+    const privateChange = changeResourceRecordSetsArgs.find(
+      change => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
+    )
+    const publicChange = changeResourceRecordSetsArgs.find(
+      change => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
+    )
+    assert(privateChange, 'could not find change set for private zone')
+    assert(publicChange, 'could not find change set for public zone')
+    expect(privateChange).to.deep.equal(expectedChange(true))
+    expect(publicChange).to.deep.equal(expectedChange(false))
   })
 })
