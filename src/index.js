@@ -98,10 +98,11 @@ export async function upsertRecordSet(options: {
   HostedZone?: ?Zone,
   Comment?: string,
   Route53?: AWS.Route53,
+  waitForChanges?: ?boolean,
   log?: ?(...args: Array<any>) => any,
   verbose?: ?boolean,
 }): Promise<void> {
-  const { PrivateZone, Comment, verbose } = options
+  const { PrivateZone, Comment, waitForChanges, verbose } = options
   const log = options.log || console.error.bind(console) // eslint-disable-line no-console
   let { ResourceRecordSet, HostedZone } = options
   if (!ResourceRecordSet) {
@@ -169,10 +170,12 @@ export async function upsertRecordSet(options: {
 
   if (verbose) log(ChangeInfo)
 
-  log('Waiting for change to complete...')
-  await Route53.waitFor('resourceRecordSetsChanged', {
-    Id: ChangeInfo.Id,
-  }).promise()
+  if (waitForChanges !== false) {
+    log('Waiting for change to complete...')
+    await Route53.waitFor('resourceRecordSetsChanged', {
+      Id: ChangeInfo.Id,
+    }).promise()
+  }
 
   log(
     `Created record for ${ResourceRecordSet.Name} in ${HostedZone.Id} (${
@@ -189,10 +192,19 @@ export async function upsertPublicAndPrivateRecords(options: {
   PublicHostedZone?: ?Zone,
   PrivateHostedZone?: ?Zone,
   Route53?: AWS.Route53,
+  waitForChanges?: ?boolean,
   log?: ?(...args: Array<any>) => any,
   verbose?: ?boolean,
 }): Promise<void> {
-  const { Name, TTL, PrivateTarget, PublicTarget, log, verbose } = options
+  const {
+    Name,
+    TTL,
+    PrivateTarget,
+    PublicTarget,
+    waitForChanges,
+    log,
+    verbose,
+  } = options
   let { PublicHostedZone, PrivateHostedZone, Route53 } = options
   Route53 = Route53 || new AWS.Route53()
   if (!PublicHostedZone || !PrivateHostedZone) {
@@ -215,6 +227,7 @@ export async function upsertPublicAndPrivateRecords(options: {
         PrivateZone: privateZone,
         HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
         Route53,
+        waitForChanges,
         log,
         verbose,
       })

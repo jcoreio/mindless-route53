@@ -60,6 +60,7 @@ const HOSTED_ZONES = [
 ]
 
 const changeResourceRecordSetsArgs = []
+let waitCount = 0
 
 const Route53 = {
   listHostedZonesByName: ({ DNSName, HostedZoneId }) => ({
@@ -86,7 +87,12 @@ const Route53 = {
       return { ChangeInfo: { Id: 'xxxxxx' } }
     },
   }),
-  waitFor: () => ({ promise: async () => {} }),
+  waitFor: () => {
+    ++waitCount
+    return {
+      promise: async () => {},
+    }
+  },
 }
 
 describe(`findHostedZoneId`, function() {
@@ -310,6 +316,29 @@ describe(`upsertRecordSet`, function() {
         HostedZoneId: '/hostedzone/BBBBBBBBBBBBB',
       },
     ])
+  })
+  it('waits for records to be created by default', async function(): Promise<void> {
+    waitCount = 0
+    await upsertRecordSet({
+      Name: 'blah.jcore.io',
+      Target: '1.2.3.4',
+      TTL: 60,
+      Route53,
+      log: () => {},
+    })
+    expect(waitCount).to.equal(1)
+  })
+  it('does not wait when waitForChanges === false', async function(): Promise<void> {
+    waitCount = 0
+    await upsertRecordSet({
+      Name: 'blah.jcore.io',
+      Target: '1.2.3.4',
+      TTL: 60,
+      Route53,
+      waitForChanges: false,
+      log: () => {},
+    })
+    expect(waitCount).to.equal(0)
   })
   it('throws when hosted zone could not be found', async function(): Promise<void> {
     await expect(
