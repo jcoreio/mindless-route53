@@ -23,6 +23,32 @@ For our purposes at least, looking up the hosted zone id when upserting a DNS re
 
 # Node.js API
 
+## `findHostedZones(options)`
+
+Finds the properties of the private and public hosted zones whose names are the deepest superdomain of a given `DNSName`.
+
+### `options`
+
+#### `DNSName` (`string`, _required_)
+
+the DNSName to search for, which can be either the exact name of the hosted zone or a subdomain.
+
+#### `Route53` (`AWS.Route53`, _optional_)
+
+a Route53 client with your desired settings.
+
+### Returns
+
+#### `PrivateHostedZone`, `?Zone`:
+
+The properties of the private hosted zone whose name is the deepest superdomain of the given `DNSName`,
+or `null` if no matching private hosted zone was found.
+
+#### `PublicHostedZone`, `?Zone`:
+
+The properties of the public hosted zone whose name is the deepest superdomain of the given `DNSName`,
+or `null` if no matching public hosted zone was found.
+
 ## `findHostedZone(options)`
 
 Finds the properties of the hosted zone whose name is the deepest superdomain of a given `DNSName`.
@@ -80,6 +106,12 @@ the time to live (required if `ResourceRecordSet` isn't given)
 
 whether to use the private hosted zone
 
+#### `HostedZone` (`Zone`, _optional_)
+
+information about the target hosted zone, as returned from `findHostedZone` or `findHostedZones`.
+You can speed up multiple calls to the same hosted zone by pre-fetching the zone
+info and providing it here.
+
 #### `Comment` (`string`, _optional_)
 
 a comment for the upsert
@@ -87,6 +119,60 @@ a comment for the upsert
 #### `Route53` (`AWS.Route53`, _optional_)
 
 a Route53 client with your desired
+
+#### `waitForChanges` (`boolean`, _optional_)
+
+defaults to `true`. If `false`, `upsertRecordSet` will return without waiting for
+confirmation that the Route53 record changes were successfully executed.
+
+### Returns
+
+The result of the `AWS.Route53.changeResourceRecordSets` call.
+
+## `upsertPublicAndPrivateRecords(options)`
+
+Upserts public and private DNS records for a single hostname.
+
+### `options`
+
+#### `Name` (`string`, _required_)
+
+the name of the record
+
+#### `TTL` (`number`, _required_)
+
+the time to live
+
+#### `PrivateTarget` (`string | Array<string>`, _required_)
+
+the IP address value(s) for an A record or DNS name value(s) for a CNAME record
+in the private zone.
+
+#### `PublicTarget` (`string | Array<string>`, _required_)
+
+the IP address value(s) for an A record or DNS name value(s) for a CNAME record
+in the public zone.
+
+#### `PrivateHostedZone` (`Zone`, _optional_)
+
+information about the private hosted zone, as returned from `findHostedZones`.
+You can speed up multiple calls to the same hosted zones by pre-fetching
+the zone info and providing it here.
+
+#### `PublicHostedZone` (`Zone`, _optional_)
+
+information about the public hosted zone, as returned from `findHostedZones`.
+You can speed up multiple calls to the same hosted zones by pre-fetching
+the zone info and providing it here.
+
+#### `Route53` (`AWS.Route53`, _optional_)
+
+a Route53 client with your desired
+
+#### `waitForChanges` (`boolean`, _optional_)
+
+defaults to `true`. If `false`, `upsertPublicAndPrivateRecords` will return without
+waiting for confirmation that the Route53 record changes were successfully executed.
 
 ### Returns
 
