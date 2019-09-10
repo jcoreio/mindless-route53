@@ -89,47 +89,6 @@ export async function findHostedZoneId(options: {
   return zone ? zone.Id : null
 }
 
-export async function upsertPublicAndPrivateRecords(options: {
-  Name: string,
-  TTL?: number,
-  PublicTarget: string | Array<string>,
-  PrivateTarget: string | Array<string>,
-  PublicHostedZone?: ?Zone,
-  PrivateHostedZone?: ?Zone,
-  Route53?: AWS.Route53,
-  log?: ?(...args: Array<any>) => any,
-  verbose?: ?boolean,
-}): Promise<void> {
-  const { Name, TTL, PublicTarget, PrivateTarget, log, verbose } = options
-  let { PublicHostedZone, PrivateHostedZone, Route53 } = options
-  Route53 = Route53 || new AWS.Route53()
-  if (!PublicHostedZone || !PrivateHostedZone) {
-    ;({ PublicHostedZone, PrivateHostedZone } = await findHostedZones({
-      DNSName: Name,
-      Route53,
-    }))
-    if (!PublicHostedZone && !PrivateHostedZone)
-      throw Error(`unable to find public or private zones for ${Name}`)
-    if (!PublicHostedZone) throw Error(`unable to find public zone for ${Name}`)
-    if (!PrivateHostedZone)
-      throw Error(`unable to find private zone for ${Name}`)
-  }
-  await Promise.all(
-    [true, false].map((privateZone: boolean) =>
-      upsertRecordSet({
-        Name,
-        Target: privateZone ? PrivateTarget : PublicTarget,
-        TTL,
-        PrivateZone: privateZone,
-        HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
-        Route53,
-        log,
-        verbose,
-      })
-    )
-  )
-}
-
 export async function upsertRecordSet(options: {
   Name?: string,
   Target?: string | Array<string>,
@@ -219,5 +178,46 @@ export async function upsertRecordSet(options: {
     `Created record for ${ResourceRecordSet.Name} in ${HostedZone.Id} (${
       HostedZone.Name
     } ${HostedZone.Config.PrivateZone ? 'private' : 'public'})`
+  )
+}
+
+export async function upsertPublicAndPrivateRecords(options: {
+  Name: string,
+  TTL?: number,
+  PrivateTarget: string | Array<string>,
+  PublicTarget: string | Array<string>,
+  PublicHostedZone?: ?Zone,
+  PrivateHostedZone?: ?Zone,
+  Route53?: AWS.Route53,
+  log?: ?(...args: Array<any>) => any,
+  verbose?: ?boolean,
+}): Promise<void> {
+  const { Name, TTL, PrivateTarget, PublicTarget, log, verbose } = options
+  let { PublicHostedZone, PrivateHostedZone, Route53 } = options
+  Route53 = Route53 || new AWS.Route53()
+  if (!PublicHostedZone || !PrivateHostedZone) {
+    ;({ PublicHostedZone, PrivateHostedZone } = await findHostedZones({
+      DNSName: Name,
+      Route53,
+    }))
+    if (!PublicHostedZone && !PrivateHostedZone)
+      throw Error(`unable to find public or private zones for ${Name}`)
+    if (!PublicHostedZone) throw Error(`unable to find public zone for ${Name}`)
+    if (!PrivateHostedZone)
+      throw Error(`unable to find private zone for ${Name}`)
+  }
+  await Promise.all(
+    [true, false].map((privateZone: boolean) =>
+      upsertRecordSet({
+        Name,
+        Target: privateZone ? PrivateTarget : PublicTarget,
+        TTL,
+        PrivateZone: privateZone,
+        HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
+        Route53,
+        log,
+        verbose,
+      })
+    )
   )
 }
