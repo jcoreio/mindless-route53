@@ -14,10 +14,14 @@ function regexExtract(s: string, rx: RegExp): ?string {
   return match ? match[0] : null
 }
 
-export async function findHostedZones(options: {
+export type FindHostedZonesOptions = {
   DNSName: string,
   Route53?: ?AWS.Route53,
-}): Promise<{
+}
+
+export async function findHostedZones(
+  options: FindHostedZonesOptions
+): Promise<{
   PrivateHostedZone: ?Zone,
   PublicHostedZone: ?Zone,
 }> {
@@ -64,15 +68,17 @@ export async function findHostedZones(options: {
   return { PrivateHostedZone, PublicHostedZone }
 }
 
+export type FindHostedZoneOptions = {
+  DNSName: string,
+  PrivateZone?: ?boolean,
+  Route53?: ?AWS.Route53,
+}
+
 export async function findHostedZone({
   DNSName,
   PrivateZone,
   Route53,
-}: {
-  DNSName: string,
-  PrivateZone?: ?boolean,
-  Route53?: ?AWS.Route53,
-}): Promise<?Zone> {
+}: FindHostedZoneOptions): Promise<?Zone> {
   const { PrivateHostedZone, PublicHostedZone } = await findHostedZones({
     DNSName,
     Route53,
@@ -80,16 +86,20 @@ export async function findHostedZone({
   return PrivateZone ? PrivateHostedZone : PublicHostedZone
 }
 
-export async function findHostedZoneId(options: {
+export type FindHostedZoneIdOptions = {
   DNSName: string,
   PrivateZone?: ?boolean,
   Route53?: ?AWS.Route53,
-}): Promise<?string> {
+}
+
+export async function findHostedZoneId(
+  options: FindHostedZoneIdOptions
+): Promise<?string> {
   const zone = await findHostedZone(options)
   return zone ? zone.Id : null
 }
 
-export async function upsertRecordSet(options: {
+export type UpsertRecordSetOptions = {
   Name?: string,
   Target?: string | Array<string>,
   TTL?: number,
@@ -101,7 +111,11 @@ export async function upsertRecordSet(options: {
   waitForChanges?: ?boolean,
   log?: ?(...args: Array<any>) => any,
   verbose?: ?boolean,
-}): Promise<void> {
+}
+
+export async function upsertRecordSet(
+  options: UpsertRecordSetOptions
+): Promise<void> {
   const { PrivateZone, Comment, waitForChanges, verbose } = options
   const log = options.log || console.error.bind(console) // eslint-disable-line no-console
   let { ResourceRecordSet, HostedZone } = options
