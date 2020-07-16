@@ -2,6 +2,7 @@
 
 import AWS from 'aws-sdk'
 import isIp from 'is-ip'
+import deepEqual from 'deep-equal'
 
 import {
   type Zone,
@@ -99,6 +100,39 @@ export async function findHostedZoneId(
   return zone ? zone.Id : null
 }
 
+function normalizeResourceRecordSet({
+  Name,
+  AliasTarget,
+  ...rest
+}: _ResourceRecordSet): _ResourceRecordSet {
+  const result = { Name: Name.replace(/\.?$/, '.'), ...rest }
+  if (AliasTarget) {
+    const { DNSName, ...restAliasTarget } = AliasTarget
+    result.AliasTarget = { DNSName: DNSName.replace(/\.?$/, '.'), ...rest }
+  }
+  return result
+}
+
+async function alreadyExists({
+  ResourceRecordSet,
+  HostedZoneId,
+  Route53,
+}: {
+  ResourceRecordSet: _ResourceRecordSet,
+  HostedZoneId: string,
+  Route53: AWS.Route53,
+}): Promise<boolean> {
+  const {
+    ResourceRecordSets: [existing],
+  } = await Route53.listResourceRecordSets({
+    HostedZoneId,
+    StartRecordName: ResourceRecordSet.Name,
+    StartRecordType: ResourceRecordSet.Type,
+    MaxItems: '1',
+  }).promise()
+  return deepEqual(normalizeResourceRecordSet(ResourceRecordSet), existing)
+}
+
 export type UpsertRecordSetOptions = {
   Name?: string,
   Target?: string | Array<string>,
@@ -147,9 +181,11 @@ export async function upsertRecordSet(
   }
   if (!ResourceRecordSet) throw new Error('this should never happen')
 
+  const logPrefix = `[${ResourceRecordSet.Name}]`
+
   const Route53 = options.Route53 || new AWS.Route53()
   if (!HostedZone) {
-    if (verbose) log('Finding hosted zone...')
+    if (verbose) log(logPrefix, `Finding hosted zone...`)
     HostedZone = await findHostedZone({
       DNSName: ResourceRecordSet.Name,
       PrivateZone,
@@ -158,10 +194,22 @@ export async function upsertRecordSet(
     if (!HostedZone) throw new Error('Failed to find an applicable hosted zone')
     if (verbose)
       log(
+        logPrefix,
         `Found hosted zone: ${HostedZone.Id} (${HostedZone.Name} ${
           HostedZone.Config.PrivateZone ? 'private' : 'public'
         })`
       )
+  }
+
+  if (
+    await alreadyExists({
+      ResourceRecordSet,
+      HostedZoneId: HostedZone.Id,
+      Route53,
+    })
+  ) {
+    log(logPrefix, `An identical record already exists`)
+    return
   }
 
   const changeOpts = {
@@ -176,7 +224,7 @@ export async function upsertRecordSet(
     },
     HostedZoneId: HostedZone.Id,
   }
-  log('Calling changeResourceRecordSets...')
+  log(logPrefix, `Calling changeResourceRecordSets...`)
   if (verbose) log(JSON.stringify(changeOpts, null, 2))
   const { ChangeInfo } = await Route53.changeResourceRecordSets(
     changeOpts
@@ -185,16 +233,17 @@ export async function upsertRecordSet(
   if (verbose) log(ChangeInfo)
 
   if (waitForChanges !== false) {
-    log('Waiting for change to complete...')
+    log(logPrefix, `Waiting for change to complete...`)
     await Route53.waitFor('resourceRecordSetsChanged', {
       Id: ChangeInfo.Id,
     }).promise()
   }
 
   log(
-    `Created record for ${ResourceRecordSet.Name} in ${HostedZone.Id} (${
-      HostedZone.Name
-    } ${HostedZone.Config.PrivateZone ? 'private' : 'public'})`
+    logPrefix,
+    `Created record in ${HostedZone.Id} (${HostedZone.Name} ${
+      HostedZone.Config.PrivateZone ? 'private' : 'public'
+    })`
   )
 }
 
