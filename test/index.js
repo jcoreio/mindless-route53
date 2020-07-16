@@ -87,6 +87,19 @@ const Route53 = {
       return { ChangeInfo: { Id: 'xxxxxx' } }
     },
   }),
+  listResourceRecordSets: ({
+    StartRecordName,
+    StartRecordType,
+    MaxItems,
+  }: {
+    StartRecordName?: string,
+    StartRecordType?: string,
+    MaxItems?: string,
+  }) => ({
+    promise: async () => {
+      return { ResourceRecordSets: [] }
+    },
+  }),
   waitFor: () => {
     ++waitCount
     return {
@@ -350,6 +363,30 @@ describe(`upsertRecordSet`, function() {
         log: () => {},
       })
     ).to.be.eventually.rejectedWith('Failed to find an applicable hosted zone')
+  })
+  it(`doesn't upsert if record already exists`, async function() {
+    await upsertRecordSet({
+      Name: 'blah.jcore.io',
+      Target: '1.2.3.4',
+      TTL: 60,
+      Route53: {
+        ...Route53,
+        listResourceRecordSets: () => ({
+          promise: async () => ({
+            ResourceRecordSets: [
+              {
+                Name: 'blah.jcore.io.',
+                Type: 'A',
+                ResourceRecords: [{ Value: '1.2.3.4' }],
+                TTL: 60,
+              },
+            ],
+          }),
+        }),
+      },
+      log: () => {},
+    })
+    expect(changeResourceRecordSetsArgs).to.deep.equal([])
   })
 })
 
