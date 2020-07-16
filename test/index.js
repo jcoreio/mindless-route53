@@ -364,7 +364,7 @@ describe(`upsertRecordSet`, function() {
       })
     ).to.be.eventually.rejectedWith('Failed to find an applicable hosted zone')
   })
-  it(`doesn't upsert if record already exists`, async function() {
+  it(`doesn't upsert if record already exists`, async function(): Promise<void> {
     await upsertRecordSet({
       Name: 'blah.jcore.io',
       Target: '1.2.3.4',

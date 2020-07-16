@@ -105,10 +105,16 @@ function normalizeResourceRecordSet({
   AliasTarget,
   ...rest
 }: _ResourceRecordSet): _ResourceRecordSet {
-  const result = { Name: Name.replace(/\.?$/, '.'), ...rest }
+  const result: _ResourceRecordSet = {
+    Name: Name.replace(/\.?$/, '.'),
+    ...rest,
+  }
   if (AliasTarget) {
     const { DNSName, ...restAliasTarget } = AliasTarget
-    result.AliasTarget = { DNSName: DNSName.replace(/\.?$/, '.'), ...rest }
+    result.AliasTarget = {
+      DNSName: DNSName.replace(/\.?$/, '.'),
+      ...restAliasTarget,
+    }
   }
   return result
 }
