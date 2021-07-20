@@ -256,8 +256,8 @@ export async function upsertRecordSet(
 export async function upsertPublicAndPrivateRecords(options: {
   Name: string,
   TTL?: number,
-  PrivateTarget: string | Array<string>,
-  PublicTarget: string | Array<string>,
+  PrivateTarget?: string | Array<string>,
+  PublicTarget?: string | Array<string>,
   PublicHostedZone?: ?Zone,
   PrivateHostedZone?: ?Zone,
   Route53?: AWS.Route53,
@@ -288,18 +288,20 @@ export async function upsertPublicAndPrivateRecords(options: {
       throw Error(`unable to find private zone for ${Name}`)
   }
   await Promise.all(
-    [true, false].map((privateZone: boolean) =>
-      upsertRecordSet({
-        Name,
-        Target: privateZone ? PrivateTarget : PublicTarget,
-        TTL,
-        PrivateZone: privateZone,
-        HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
-        Route53,
-        waitForChanges,
-        log,
-        verbose,
-      })
-    )
+    [true, false].map(async (privateZone: boolean) => {
+      const Target = privateZone ? PrivateTarget : PublicTarget
+      if (Target)
+        await upsertRecordSet({
+          Name,
+          Target,
+          TTL,
+          PrivateZone: privateZone,
+          HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
+          Route53,
+          waitForChanges,
+          log,
+          verbose,
+        })
+    })
   )
 }
