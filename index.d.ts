@@ -1,8 +1,10 @@
 import AWS from 'aws-sdk'
+import {ConfigurationOptions} from 'aws-sdk/lib/config'
 
 export type FindHostedZonesOptions = {
   DNSName: string
   Route53?: AWS.Route53 | null | undefined
+  awsConfig?: ConfigurationOptions | null
 }
 
 export function findHostedZones(
@@ -16,6 +18,7 @@ export type FindHostedZoneOptions = {
   DNSName: string
   PrivateZone?: boolean | null | undefined
   Route53?: AWS.Route53 | null | undefined
+  awsConfig?: ConfigurationOptions | null
 }
 
 export function findHostedZone(
@@ -26,6 +29,7 @@ export type FindHostedZoneIdOptions = {
   DNSName: string
   PrivateZone?: boolean | null | undefined
   Route53?: AWS.Route53 | null | undefined
+  awsConfig?: ConfigurationOptions | null
 }
 
 export function findHostedZoneId(
@@ -40,6 +44,7 @@ export type UpsertRecordSetOptions = {
   PrivateZone?: boolean | null | undefined
   Comment?: string | null | undefined
   Route53?: AWS.Route53 | null | undefined
+  awsConfig?: ConfigurationOptions | null
   waitForChanges?: boolean | null | undefined
   log?: ((...args: Array<any>) => any) | null | undefined
   verbose?: boolean | null | undefined
@@ -55,6 +60,7 @@ export type UpsertPublicAndPrivateRecordsOptions = {
   PublicHostedZone?: AWS.Route53.HostedZone | null | undefined
   PrivateHostedZone?: AWS.Route53.HostedZone | null | undefined
   Route53?: AWS.Route53 | null | undefined
+  awsConfig?: ConfigurationOptions | null
   waitForChanges?: boolean | null | undefined
   log?: ((...args: Array<any>) => any) | null | undefined
   verbose?: boolean | null | undefined
