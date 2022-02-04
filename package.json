@@ -96,7 +96,6 @@
     "@jedwards1211/commitlint-config": "^1.0.2",
     "@jedwards1211/eslint-config": "^2.0.2",
     "@jedwards1211/eslint-config-flow": "^3.0.1",
-    "babel-plugin-flow-runtime": "^0.19.0",
     "babel-plugin-istanbul": "^6.0.0",
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
@@ -120,11 +119,12 @@
   },
   "dependencies": {
     "@babel/runtime": "^7.15.4",
-    "aws-sdk": "^2.499.0",
+    "@types/node": "^17.0.14",
+    "aws-sdk": "^2.1000.0",
     "deep-equal": "^2.0.3",
     "flow-runtime": "^0.17.0",
     "is-ip": "^3.1.0",
-    "typescript": "^3.9.6",
+    "typed-validators": "^4.4.0",
     "yargs": "^13.3.0"
   },
   "renovate": {

@@ -1,12 +1,5 @@
 module.exports = function (api) {
-  const plugins = [
-    [
-      'babel-plugin-flow-runtime',
-      { assert: false, annotate: false, optInOnly: true },
-    ],
-    '@babel/plugin-transform-flow-strip-types',
-    '@babel/plugin-proposal-class-properties',
-  ]
+  const plugins = []
   const presets = [
     [
       '@babel/preset-env',

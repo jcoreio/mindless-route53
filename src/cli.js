@@ -9,7 +9,7 @@ yargs
   .command(
     'upsert',
     'upsert a resource record set',
-    function(yargs) {
+    function (yargs) {
       yargs
         .usage(
           '$0 upsert --name <DNS name> --target <target IP(s) or DNS name(s)> --ttl <time to live> [--private] [--comment <comment>] [--region <AWS region>]'
@@ -55,7 +55,7 @@ yargs
           describe: 'enable verbose output',
         })
     },
-    function(argv) {
+    function (argv) {
       const {
         name: Name,
         target: Target,
@@ -80,7 +80,7 @@ yargs
         verbose,
       }).then(
         () => process.exit(0),
-        err => {
+        (err) => {
           if (!quiet) {
             console.error(err.stack) // eslint-disable-line no-console
           }

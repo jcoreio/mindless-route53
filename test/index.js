@@ -64,9 +64,9 @@ let waitCount = 0
 
 const Route53 = {
   listHostedZonesByName: ({ DNSName, HostedZoneId }) => ({
-    promise: async () => {
+    promise: async (): Promise<any> => {
       const i = HOSTED_ZONES.findIndex(
-        z =>
+        (z) =>
           z.Id === HostedZoneId || z.Name.endsWith(DNSName.replace(/\.?$/, '.'))
       )
       return i < 0
@@ -81,8 +81,8 @@ const Route53 = {
           }
     },
   }),
-  changeResourceRecordSets: arg => ({
-    promise: async () => {
+  changeResourceRecordSets: (arg) => ({
+    promise: async (): Promise<any> => {
       changeResourceRecordSetsArgs.push(arg)
       return { ChangeInfo: { Id: 'xxxxxx' } }
     },
@@ -96,20 +96,20 @@ const Route53 = {
     StartRecordType?: string,
     MaxItems?: string,
   }) => ({
-    promise: async () => {
+    promise: async (): Promise<any> => {
       return { ResourceRecordSets: [] }
     },
   }),
-  waitFor: () => {
+  waitFor: (): any => {
     ++waitCount
     return {
-      promise: async () => {},
+      promise: async (): Promise<any> => {},
     }
   },
 }
 
-describe(`findHostedZoneId`, function() {
-  it(`works`, async function(): Promise<void> {
+describe(`findHostedZoneId`, function () {
+  it(`works`, async function (): Promise<void> {
     expect(
       await findHostedZoneId({
         DNSName: 'glob.foo.jcore.io',
@@ -131,7 +131,7 @@ describe(`findHostedZoneId`, function() {
       })
     ).to.not.exist
   })
-  it(`throws if response is invalid`, async function(): Promise<void> {
+  it(`throws if response is invalid`, async function (): Promise<void> {
     const Route53 = {
       listHostedZonesByName: () => ({
         promise: () =>
@@ -149,12 +149,12 @@ describe(`findHostedZoneId`, function() {
   })
 })
 
-describe(`upsertRecordSet`, function() {
+describe(`upsertRecordSet`, function () {
   beforeEach(() => {
     changeResourceRecordSetsArgs.length = 0
   })
 
-  it(`works for IP addresses`, async function(): Promise<void> {
+  it(`works for IP addresses`, async function (): Promise<void> {
     const Name = 'toyfactory.jcore.io'
     const Target = '1.2.3.4'
     const TTL = 360
@@ -215,7 +215,7 @@ describe(`upsertRecordSet`, function() {
       },
     ])
   })
-  it(`works for DNS names`, async function(): Promise<void> {
+  it(`works for DNS names`, async function (): Promise<void> {
     const Name = 'toyfactory.jcore.io'
     const Target = 'nlb--blah-blah-blah.jcore.io'
     const TTL = 360
@@ -276,7 +276,7 @@ describe(`upsertRecordSet`, function() {
       },
     ])
   })
-  it(`works for ResourceRecordSets`, async function(): Promise<void> {
+  it(`works for ResourceRecordSets`, async function (): Promise<void> {
     const Name = 'toyfactory.jcore.io'
     const Target = 'nlb--blah-blah-blah.jcore.io'
     const TTL = 360
@@ -330,7 +330,7 @@ describe(`upsertRecordSet`, function() {
       },
     ])
   })
-  it('waits for records to be created by default', async function(): Promise<void> {
+  it('waits for records to be created by default', async function (): Promise<void> {
     waitCount = 0
     await upsertRecordSet({
       Name: 'blah.jcore.io',
@@ -341,7 +341,7 @@ describe(`upsertRecordSet`, function() {
     })
     expect(waitCount).to.equal(1)
   })
-  it('does not wait when waitForChanges === false', async function(): Promise<void> {
+  it('does not wait when waitForChanges === false', async function (): Promise<void> {
     waitCount = 0
     await upsertRecordSet({
       Name: 'blah.jcore.io',
@@ -353,7 +353,7 @@ describe(`upsertRecordSet`, function() {
     })
     expect(waitCount).to.equal(0)
   })
-  it('throws when hosted zone could not be found', async function(): Promise<void> {
+  it('throws when hosted zone could not be found', async function (): Promise<void> {
     await expect(
       upsertRecordSet({
         Name: 'host.non.existent.domain',
@@ -364,7 +364,7 @@ describe(`upsertRecordSet`, function() {
       })
     ).to.be.eventually.rejectedWith('Failed to find an applicable hosted zone')
   })
-  it(`doesn't upsert if record already exists`, async function(): Promise<void> {
+  it(`doesn't upsert if record already exists`, async function (): Promise<void> {
     await upsertRecordSet({
       Name: 'blah.jcore.io',
       Target: '1.2.3.4',
@@ -390,12 +390,12 @@ describe(`upsertRecordSet`, function() {
   })
 })
 
-describe(`upsertPublicAndPrivateRecords`, function() {
+describe(`upsertPublicAndPrivateRecords`, function () {
   beforeEach(() => {
     changeResourceRecordSetsArgs.length = 0
   })
 
-  it(`works for IP addresses`, async function(): Promise<void> {
+  it(`works for IP addresses`, async function (): Promise<void> {
     const Name = 'toyfactory.jcore.io'
     const PrivateTarget = '1.2.3.4'
     const PublicTarget = '5.6.7.8'
@@ -434,17 +434,17 @@ describe(`upsertPublicAndPrivateRecords`, function() {
 
     expect(changeResourceRecordSetsArgs.length).to.equal(2)
     const privateChange = changeResourceRecordSetsArgs.find(
-      change => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
+      (change) => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
     )
     const publicChange = changeResourceRecordSetsArgs.find(
-      change => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
+      (change) => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
     )
     assert(privateChange, 'could not find change set for private zone')
     assert(publicChange, 'could not find change set for public zone')
     expect(privateChange).to.deep.equal(expectedChange(true))
     expect(publicChange).to.deep.equal(expectedChange(false))
   })
-  it(`works for DNS names`, async function(): Promise<void> {
+  it(`works for DNS names`, async function (): Promise<void> {
     const Name = 'toyfactory.jcore.io'
     const PrivateTarget = 'nlb--blah-blah-blah-private.jcore.io'
     const PublicTarget = 'nlb--blah-blah-blah-public.jcore.io'
@@ -483,10 +483,10 @@ describe(`upsertPublicAndPrivateRecords`, function() {
 
     expect(changeResourceRecordSetsArgs.length).to.equal(2)
     const privateChange = changeResourceRecordSetsArgs.find(
-      change => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
+      (change) => '/hostedzone/BBBBBBBBBBBBB' === change.HostedZoneId
     )
     const publicChange = changeResourceRecordSetsArgs.find(
-      change => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
+      (change) => '/hostedzone/AAAAAAAAAAAAA' === change.HostedZoneId
     )
     assert(privateChange, 'could not find change set for private zone')
     assert(publicChange, 'could not find change set for public zone')

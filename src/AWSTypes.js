@@ -1,8 +1,6 @@
 // @flow
-// @flow-runtime enable
 
-import reify from 'flow-runtime'
-import { type Type } from 'flow-runtime'
+import * as t from 'typed-validators'
 
 export type Zone = {
   Id: string,
@@ -12,7 +10,25 @@ export type Zone = {
   },
 }
 
-export const ZoneType = (reify: Type<Zone>)
+export const ZoneType: t.TypeAlias<Zone> = t.alias(
+  'Zone',
+  t.object({
+    exact: false,
+
+    required: {
+      Id: t.string(),
+      Name: t.string(),
+
+      Config: t.object({
+        exact: false,
+
+        required: {
+          PrivateZone: t.boolean(),
+        },
+      }),
+    },
+  })
+)
 
 export type ListHostedZonesByNameResponse = {
   HostedZones: Array<Zone>,
@@ -21,7 +37,23 @@ export type ListHostedZonesByNameResponse = {
   NextHostedZoneId?: ?string,
 }
 
-export const ListHostedZonesByNameResponseType = (reify: Type<ListHostedZonesByNameResponse>)
+export const ListHostedZonesByNameResponseType: t.TypeAlias<ListHostedZonesByNameResponse> =
+  t.alias(
+    'ListHostedZonesByNameResponse',
+    t.object({
+      exact: false,
+
+      required: {
+        HostedZones: t.array(t.ref(() => ZoneType)),
+        IsTruncated: t.boolean(),
+      },
+
+      optional: {
+        NextDNSName: t.nullishOr(t.string()),
+        NextHostedZoneId: t.nullishOr(t.string()),
+      },
+    })
+  )
 
 export type ResourceRecord = {
   Value: string,

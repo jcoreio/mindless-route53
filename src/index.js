@@ -4,6 +4,8 @@ import AWS from 'aws-sdk'
 import isIp from 'is-ip'
 import deepEqual from 'deep-equal'
 
+type AWSRoute53 = any
+
 import {
   type Zone,
   ListHostedZonesByNameResponseType,
@@ -17,7 +19,7 @@ function regexExtract(s: string, rx: RegExp): ?string {
 
 export type FindHostedZonesOptions = {
   DNSName: string,
-  Route53?: ?AWS.Route53,
+  Route53?: ?AWSRoute53,
   awsConfig?: ?{ ... },
 }
 
@@ -74,7 +76,7 @@ export async function findHostedZones(
 export type FindHostedZoneOptions = {
   DNSName: string,
   PrivateZone?: ?boolean,
-  Route53?: ?AWS.Route53,
+  Route53?: ?AWSRoute53,
   awsConfig?: ?{ ... },
 }
 
@@ -95,7 +97,7 @@ export async function findHostedZone({
 export type FindHostedZoneIdOptions = {
   DNSName: string,
   PrivateZone?: ?boolean,
-  Route53?: ?AWS.Route53,
+  Route53?: ?AWSRoute53,
   awsConfig?: ?{ ... },
 }
 
@@ -112,14 +114,14 @@ function normalizeResourceRecordSet({
   ...rest
 }: _ResourceRecordSet): _ResourceRecordSet {
   const result: _ResourceRecordSet = {
-    Name: Name.replace(/\.?$/, '.'),
     ...rest,
+    Name: Name.replace(/\.?$/, '.'),
   }
   if (AliasTarget) {
     const { DNSName, ...restAliasTarget } = AliasTarget
     result.AliasTarget = {
-      DNSName: DNSName.replace(/\.?$/, '.'),
       ...restAliasTarget,
+      DNSName: DNSName.replace(/\.?$/, '.'),
     }
   }
   return result
@@ -129,11 +131,10 @@ async function alreadyExists({
   ResourceRecordSet,
   HostedZoneId,
   Route53,
-  awsConfig,
 }: {
   ResourceRecordSet: _ResourceRecordSet,
   HostedZoneId: string,
-  Route53: AWS.Route53,
+  Route53: AWSRoute53,
 }): Promise<boolean> {
   const {
     ResourceRecordSets: [existing],
@@ -154,7 +155,7 @@ export type UpsertRecordSetOptions = {
   PrivateZone?: ?boolean,
   HostedZone?: ?Zone,
   Comment?: string,
-  Route53?: AWS.Route53,
+  Route53?: AWSRoute53,
   awsConfig?: ?{ ... },
   waitForChanges?: ?boolean,
   log?: ?(...args: Array<any>) => any,
@@ -265,11 +266,11 @@ export async function upsertRecordSet(
 export async function upsertPublicAndPrivateRecords(options: {
   Name: string,
   TTL?: number,
-  PrivateTarget?: string | Array<string>,
-  PublicTarget?: string | Array<string>,
+  PrivateTarget: string | Array<string>,
+  PublicTarget: string | Array<string>,
   PublicHostedZone?: ?Zone,
   PrivateHostedZone?: ?Zone,
-  Route53?: AWS.Route53,
+  Route53?: AWSRoute53,
   awsConfig?: { ... },
   waitForChanges?: ?boolean,
   log?: ?(...args: Array<any>) => any,
@@ -300,21 +301,19 @@ export async function upsertPublicAndPrivateRecords(options: {
       throw Error(`unable to find private zone for ${Name}`)
   }
   await Promise.all(
-    [true, false].map(async (privateZone: boolean) => {
-      const Target = privateZone ? PrivateTarget : PublicTarget
-      if (Target)
-        await upsertRecordSet({
-          Name,
-          Target,
-          TTL,
-          PrivateZone: privateZone,
-          HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
-          Route53,
-          awsConfig,
-          waitForChanges,
-          log,
-          verbose,
-        })
-    })
+    [true, false].map((privateZone: boolean) =>
+      upsertRecordSet({
+        Name,
+        Target: privateZone ? PrivateTarget : PublicTarget,
+        TTL,
+        PrivateZone: privateZone,
+        HostedZone: privateZone ? PrivateHostedZone : PublicHostedZone,
+        Route53,
+        awsConfig,
+        waitForChanges,
+        log,
+        verbose,
+      })
+    )
   )
 }
