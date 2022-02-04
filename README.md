@@ -29,6 +29,10 @@ Finds the properties of the private and public hosted zones whose names are the 
 
 ### `options`
 
+#### `awsConfig` (`AWS.ConfigurationOptions`, _optional_)
+
+The general configuration options for AWS services, like `credentials` and `region`
+
 #### `DNSName` (`string`, _required_)
 
 the DNSName to search for, which can be either the exact name of the hosted zone or a subdomain.
@@ -85,6 +89,10 @@ Upserts a single DNS record set.
 
 ### `options`
 
+#### `awsConfig` (`AWS.ConfigurationOptions`, _optional_)
+
+The general configuration options for AWS services, like `credentials` and `region`
+
 #### `ResourceRecordSet` (`ResourceRecordSet`, _optional_)
 
 a `ResourceRecordSet` as accepted by the AWS SDK for upsert
@@ -134,6 +142,10 @@ The result of the `AWS.Route53.changeResourceRecordSets` call.
 Upserts public and private DNS records for a single hostname.
 
 ### `options`
+
+#### `awsConfig` (`AWS.ConfigurationOptions`, _optional_)
+
+The general configuration options for AWS services, like `credentials` and `region`
 
 #### `Name` (`string`, _required_)
 
