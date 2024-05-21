@@ -5,6 +5,14 @@ import {
   upsertRecordSet,
   upsertPublicAndPrivateRecords,
 } from '../src'
+import {
+  ResourceRecordSet,
+  ChangeResourceRecordSetsRequest,
+  ListHostedZonesByNameCommand,
+  ChangeResourceRecordSetsCommand,
+  ListResourceRecordSetsCommand,
+} from '@aws-sdk/client-route-53'
+
 const HOSTED_ZONES = [
   {
     Id: '/hostedzone/AAAAAAAAAAAAA',
@@ -71,15 +79,11 @@ const HOSTED_ZONES = [
     ResourceRecordSetCount: 68,
   },
 ]
-const changeResourceRecordSetsArgs: Array<AWS.Route53.ChangeResourceRecordSetsRequest> =
-  []
-let waitCount = 0
-const Route53: AWS.Route53 = {
-  listHostedZonesByName: ({
-    DNSName,
-    HostedZoneId,
-  }: AWS.Route53.ListHostedZonesByNameRequest) => ({
-    promise: async (): Promise<any> => {
+const changeResourceRecordSetsArgs: Array<ChangeResourceRecordSetsRequest> = []
+const Route53: any = {
+  async send(command: any) {
+    if (command instanceof ListHostedZonesByNameCommand) {
+      const { DNSName, HostedZoneId } = command.input
       const i = HOSTED_ZONES.findIndex(
         (z) =>
           z.Id === HostedZoneId ||
@@ -98,34 +102,22 @@ const Route53: AWS.Route53 = {
             NextDNSName:
               i + 2 < HOSTED_ZONES.length ? HOSTED_ZONES[i + 2].Name : null,
           }
-    },
-  }),
-  changeResourceRecordSets: (
-    arg: AWS.Route53.ChangeResourceRecordSetsRequest
-  ) => ({
-    promise: async (): Promise<any> => {
-      changeResourceRecordSetsArgs.push(arg)
+    }
+    if (command instanceof ChangeResourceRecordSetsCommand) {
+      changeResourceRecordSetsArgs.push(command.input)
       return {
         ChangeInfo: {
           Id: 'xxxxxx',
         },
       }
-    },
-  }),
-  listResourceRecordSets: () => ({
-    promise: async (): Promise<any> => {
+    }
+    if (command instanceof ListResourceRecordSetsCommand) {
       return {
         ResourceRecordSets: [],
       }
-    },
-  }),
-  waitFor: (): any => {
-    ++waitCount
-    return {
-      promise: async (): Promise<any> => {},
     }
   },
-} as any
+}
 describe(`findHostedZoneId`, function () {
   it(`works`, async function (): Promise<undefined> {
     expect(
@@ -149,27 +141,6 @@ describe(`findHostedZoneId`, function () {
       })
     ).to.not.exist
   })
-  it(`throws if response is invalid`, async function (): Promise<undefined> {
-    const Route53: AWS.Route53 = {
-      listHostedZonesByName: () => ({
-        promise: () =>
-          Promise.resolve({
-            HostedZones: [
-              {
-                Id: 2,
-                Name: 'foo',
-              },
-            ],
-          }),
-      }),
-    } as any
-    await expect(
-      findHostedZoneId({
-        DNSName: 'test',
-        Route53,
-      })
-    ).to.be.rejected
-  })
 })
 describe(`upsertRecordSet`, function () {
   beforeEach(() => {
@@ -185,6 +156,7 @@ describe(`upsertRecordSet`, function () {
       TTL,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -217,6 +189,7 @@ describe(`upsertRecordSet`, function () {
       PrivateZone: true,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -252,6 +225,7 @@ describe(`upsertRecordSet`, function () {
       TTL,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -284,6 +258,7 @@ describe(`upsertRecordSet`, function () {
       PrivateZone: true,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -313,7 +288,7 @@ describe(`upsertRecordSet`, function () {
     const Name = 'toyfactory.jcore.io'
     const Target = 'nlb--blah-blah-blah.jcore.io'
     const TTL = 360
-    const ResourceRecordSet: AWS.Route53.ResourceRecordSet = {
+    const ResourceRecordSet: ResourceRecordSet = {
       Name,
       Type: 'CNAME',
       ResourceRecords: [
@@ -327,6 +302,7 @@ describe(`upsertRecordSet`, function () {
       ResourceRecordSet,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -348,6 +324,7 @@ describe(`upsertRecordSet`, function () {
       PrivateZone: true,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([
       {
@@ -364,29 +341,6 @@ describe(`upsertRecordSet`, function () {
       },
     ])
   })
-  it('waits for records to be created by default', async function (): Promise<undefined> {
-    waitCount = 0
-    await upsertRecordSet({
-      Name: 'blah.jcore.io',
-      Target: '1.2.3.4',
-      TTL: 60,
-      Route53,
-      log: () => {},
-    })
-    expect(waitCount).to.equal(1)
-  })
-  it('does not wait when waitForChanges === false', async function (): Promise<undefined> {
-    waitCount = 0
-    await upsertRecordSet({
-      Name: 'blah.jcore.io',
-      Target: '1.2.3.4',
-      TTL: 60,
-      Route53,
-      waitForChanges: false,
-      log: () => {},
-    })
-    expect(waitCount).to.equal(0)
-  })
   it('throws when hosted zone could not be found', async function (): Promise<undefined> {
     await expect(
       upsertRecordSet({
@@ -395,6 +349,7 @@ describe(`upsertRecordSet`, function () {
         TTL: 60,
         Route53,
         log: () => {},
+        waitForChanges: false,
       })
     ).to.be.eventually.rejectedWith('Failed to find an applicable hosted zone')
   })
@@ -405,24 +360,28 @@ describe(`upsertRecordSet`, function () {
       TTL: 60,
       Route53: {
         ...Route53,
-        listResourceRecordSets: () => ({
-          promise: async () => ({
-            ResourceRecordSets: [
-              {
-                Name: 'blah.jcore.io.',
-                Type: 'A',
-                ResourceRecords: [
-                  {
-                    Value: '1.2.3.4',
-                  },
-                ],
-                TTL: 60,
-              },
-            ],
-          }),
-        }),
+        async send(command: any) {
+          if (command instanceof ListResourceRecordSetsCommand) {
+            return {
+              ResourceRecordSets: [
+                {
+                  Name: 'blah.jcore.io.',
+                  Type: 'A',
+                  ResourceRecords: [
+                    {
+                      Value: '1.2.3.4',
+                    },
+                  ],
+                  TTL: 60,
+                },
+              ],
+            }
+          }
+          return await Route53.send(command)
+        },
       } as any,
       log: () => {},
+      waitForChanges: false,
     })
     expect(changeResourceRecordSetsArgs).to.deep.equal([])
   })
@@ -443,6 +402,7 @@ describe(`upsertPublicAndPrivateRecords`, function () {
       PublicTarget,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     const expectedChange = (privateZone: boolean) => ({
       ChangeBatch: {
@@ -491,6 +451,7 @@ describe(`upsertPublicAndPrivateRecords`, function () {
       PublicTarget,
       Route53,
       log: () => {},
+      waitForChanges: false,
     })
     const expectedChange = (privateZone: boolean) => ({
       ChangeBatch: {

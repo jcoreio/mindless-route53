@@ -1,4 +1,14 @@
-import AWS from 'aws-sdk'
+import {
+  Route53Client,
+  Route53ClientConfig,
+  HostedZone,
+  ResourceRecordSet,
+  ChangeResourceRecordSetsRequest,
+  ListHostedZonesByNameCommand,
+  ListResourceRecordSetsCommand,
+  ChangeResourceRecordSetsCommand,
+  waitUntilResourceRecordSetsChanged,
+} from '@aws-sdk/client-route-53'
 import isIp from 'is-ip'
 // @ts-expect-error untyped
 import deepEqual from 'deep-equal'
@@ -9,46 +19,53 @@ function regexExtract(s: string, rx: RegExp): string | undefined {
 }
 export type FindHostedZonesOptions = {
   DNSName: string
-  Route53?: AWS.Route53 | undefined
-  awsConfig?: AWS.ConfigurationOptions | undefined
+  Route53?: Route53Client | undefined
+  awsConfig?: Route53ClientConfig | undefined
 }
 export async function findHostedZones(
   options: FindHostedZonesOptions
 ): Promise<{
-  PrivateHostedZone: AWS.Route53.HostedZone | undefined
-  PublicHostedZone: AWS.Route53.HostedZone | undefined
+  PrivateHostedZone: HostedZone | undefined
+  PublicHostedZone: HostedZone | undefined
 }> {
   const origDNSName = options.DNSName
   const DNSName = options.DNSName.replace(/\.?$/, '.')
   const awsConfig = options.awsConfig || {}
-  const Route53 = options.Route53 || new AWS.Route53(awsConfig)
+  const Route53 = options.Route53 || new Route53Client(awsConfig)
   const minDNSName = regexExtract(DNSName, /[^.]+\.[^.]+\.$/)
   if (!minDNSName) throw new Error(`Invalid DNSName: ${origDNSName}`)
-  let PrivateHostedZone: AWS.Route53.HostedZone | undefined = undefined
-  let PublicHostedZone: AWS.Route53.HostedZone | undefined = undefined
-  async function* listZones(): AsyncIterable<AWS.Route53.HostedZone> {
-    const repsonse = await Route53.listHostedZonesByName({
-      DNSName: minDNSName,
-    }).promise()
+  let PrivateHostedZone: HostedZone | undefined = undefined
+  let PublicHostedZone: HostedZone | undefined = undefined
+  async function* listZones(): AsyncIterable<HostedZone> {
+    const repsonse = await Route53.send(
+      new ListHostedZonesByNameCommand({
+        DNSName: minDNSName,
+      })
+    )
     let { HostedZones, IsTruncated, NextDNSName, NextHostedZoneId } = repsonse
-    yield* HostedZones
+    yield* HostedZones || []
     while (IsTruncated) {
-      const repsonse = await Route53.listHostedZonesByName({
-        DNSName: NextDNSName,
-        HostedZoneId: NextHostedZoneId,
-      }).promise()
+      const repsonse = await Route53.send(
+        new ListHostedZonesByNameCommand({
+          DNSName: NextDNSName,
+          HostedZoneId: NextHostedZoneId,
+        })
+      )
       ;({ HostedZones, IsTruncated, NextDNSName, NextHostedZoneId } = repsonse)
-      yield* HostedZones
+      yield* HostedZones || []
     }
   }
   for await (const zone of listZones()) {
     const { Name, Config } = zone
-    if (!DNSName.endsWith(Name)) break
+    if (!Name || !DNSName.endsWith(Name)) break
     if (Config?.PrivateZone) {
-      if (!PrivateHostedZone || Name.length > PrivateHostedZone.Name.length)
+      if (
+        !PrivateHostedZone?.Name ||
+        Name.length > PrivateHostedZone.Name.length
+      )
         PrivateHostedZone = zone
     } else {
-      if (!PublicHostedZone || Name.length > PublicHostedZone.Name.length)
+      if (!PublicHostedZone?.Name || Name.length > PublicHostedZone.Name.length)
         PublicHostedZone = zone
     }
   }
@@ -60,15 +77,15 @@ export async function findHostedZones(
 export type FindHostedZoneOptions = {
   DNSName: string
   PrivateZone?: boolean
-  Route53?: AWS.Route53
-  awsConfig?: AWS.ConfigurationOptions
+  Route53?: Route53Client
+  awsConfig?: Route53ClientConfig
 }
 export async function findHostedZone({
   DNSName,
   PrivateZone,
   Route53,
   awsConfig,
-}: FindHostedZoneOptions): Promise<AWS.Route53.HostedZone | undefined> {
+}: FindHostedZoneOptions): Promise<HostedZone | undefined> {
   const { PrivateHostedZone, PublicHostedZone } = await findHostedZones({
     DNSName,
     Route53,
@@ -79,8 +96,8 @@ export async function findHostedZone({
 export type FindHostedZoneIdOptions = {
   DNSName: string
   PrivateZone?: boolean
-  Route53?: AWS.Route53
-  awsConfig?: AWS.ConfigurationOptions
+  Route53?: Route53Client
+  awsConfig?: Route53ClientConfig
 }
 export async function findHostedZoneId(
   options: FindHostedZoneIdOptions
@@ -92,16 +109,16 @@ function normalizeResourceRecordSet({
   Name,
   AliasTarget,
   ...rest
-}: AWS.Route53.ResourceRecordSet): AWS.Route53.ResourceRecordSet {
-  const result: AWS.Route53.ResourceRecordSet = {
+}: ResourceRecordSet): ResourceRecordSet {
+  const result: ResourceRecordSet = {
     ...rest,
-    Name: Name.replace(/\.?$/, '.'),
+    Name: Name?.replace(/\.?$/, '.'),
   }
   if (AliasTarget) {
     const { DNSName, ...restAliasTarget } = AliasTarget
     result.AliasTarget = {
       ...restAliasTarget,
-      DNSName: DNSName.replace(/\.?$/, '.'),
+      DNSName: DNSName?.replace(/\.?$/, '.'),
     }
   }
   return result
@@ -111,30 +128,30 @@ async function alreadyExists({
   HostedZoneId,
   Route53,
 }: {
-  ResourceRecordSet: AWS.Route53.ResourceRecordSet
+  ResourceRecordSet: ResourceRecordSet
   HostedZoneId: string
-  Route53: AWS.Route53
+  Route53: Route53Client
 }): Promise<boolean> {
-  const {
-    ResourceRecordSets: [existing],
-  } = await Route53.listResourceRecordSets({
-    HostedZoneId,
-    StartRecordName: ResourceRecordSet.Name,
-    StartRecordType: ResourceRecordSet.Type,
-    MaxItems: '1',
-  }).promise()
+  const { ResourceRecordSets: [existing] = [] } = await Route53.send(
+    new ListResourceRecordSetsCommand({
+      HostedZoneId,
+      StartRecordName: ResourceRecordSet.Name,
+      StartRecordType: ResourceRecordSet.Type,
+      MaxItems: 1,
+    })
+  )
   return deepEqual(normalizeResourceRecordSet(ResourceRecordSet), existing)
 }
 export type UpsertRecordSetOptions = {
   Name?: string
   Target?: string | Array<string>
   TTL?: number
-  ResourceRecordSet?: AWS.Route53.ResourceRecordSet
+  ResourceRecordSet?: ResourceRecordSet
   PrivateZone?: boolean
-  HostedZone?: AWS.Route53.HostedZone
+  HostedZone?: HostedZone
   Comment?: string
-  Route53?: AWS.Route53
-  awsConfig?: AWS.ConfigurationOptions
+  Route53?: Route53Client
+  awsConfig?: Route53ClientConfig
   waitForChanges?: boolean
   log?: (...args: Array<any>) => any
   verbose?: boolean
@@ -172,10 +189,10 @@ export async function upsertRecordSet(
       TTL,
     }
   }
-  if (!ResourceRecordSet) throw new Error('this should never happen')
+  if (!ResourceRecordSet?.Name) throw new Error('this should never happen')
   const logPrefix = `[${ResourceRecordSet.Name}]`
   const awsConfig = options.awsConfig || {}
-  const Route53 = options.Route53 || new AWS.Route53(awsConfig)
+  const Route53 = options.Route53 || new Route53Client(awsConfig)
   if (!HostedZone) {
     if (verbose) log(logPrefix, `Finding hosted zone...`)
     HostedZone = await findHostedZone({
@@ -193,17 +210,21 @@ export async function upsertRecordSet(
         })`
       )
   }
+  const HostedZoneId = HostedZone.Id
+  if (HostedZoneId == null) {
+    throw new Error(`unexpected: HostedZone.Id is undefined`)
+  }
   if (
     await alreadyExists({
       ResourceRecordSet,
-      HostedZoneId: HostedZone.Id,
+      HostedZoneId,
       Route53,
     })
   ) {
     log(logPrefix, `An identical record already exists`)
     return
   }
-  const changeOpts: AWS.Route53.ChangeResourceRecordSetsRequest = {
+  const changeOpts: ChangeResourceRecordSetsRequest = {
     ChangeBatch: {
       Changes: [
         {
@@ -217,15 +238,18 @@ export async function upsertRecordSet(
   }
   log(logPrefix, `Calling changeResourceRecordSets...`)
   if (verbose) log(JSON.stringify(changeOpts, null, 2))
-  const { ChangeInfo } = await Route53.changeResourceRecordSets(
-    changeOpts
-  ).promise()
+  const { ChangeInfo } = await Route53.send(
+    new ChangeResourceRecordSetsCommand(changeOpts)
+  )
   if (verbose) log(ChangeInfo)
   if (waitForChanges !== false) {
     log(logPrefix, `Waiting for change to complete...`)
-    await Route53.waitFor('resourceRecordSetsChanged', {
-      Id: ChangeInfo.Id,
-    }).promise()
+    await waitUntilResourceRecordSetsChanged(
+      { client: Route53, maxWaitTime: 3600 },
+      {
+        Id: ChangeInfo?.Id,
+      }
+    )
   }
   log(
     logPrefix,
@@ -239,10 +263,10 @@ export async function upsertPublicAndPrivateRecords(options: {
   TTL?: number
   PrivateTarget: string | Array<string>
   PublicTarget: string | Array<string>
-  PublicHostedZone?: AWS.Route53.HostedZone
-  PrivateHostedZone?: AWS.Route53.HostedZone
-  Route53?: AWS.Route53
-  awsConfig?: Record<any, any>
+  PublicHostedZone?: HostedZone
+  PrivateHostedZone?: HostedZone
+  Route53?: Route53Client
+  awsConfig?: Route53ClientConfig
   waitForChanges?: boolean
   log?: (...args: Array<any>) => any
   verbose?: boolean

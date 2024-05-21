@@ -3,8 +3,7 @@
 // @ts-expect-error untyped
 import yargs from 'yargs'
 import { upsertRecordSet } from './index'
-
-import AWS from 'aws-sdk'
+import { Route53Client } from '@aws-sdk/client-route-53'
 
 yargs
   .command(
@@ -68,7 +67,7 @@ yargs
         verbose,
       } = argv
 
-      const Route53 = region ? new AWS.Route53({ region }) : undefined
+      const Route53 = region ? new Route53Client({ region }) : undefined
 
       upsertRecordSet({
         Name,
