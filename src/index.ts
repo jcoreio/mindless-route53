@@ -245,7 +245,7 @@ export async function upsertRecordSet(
   if (waitForChanges !== false) {
     log(logPrefix, `Waiting for change to complete...`)
     await waitUntilResourceRecordSetsChanged(
-      { client: Route53, maxWaitTime: 3600 },
+      { client: Route53, maxWaitTime: 3600, minDelay: 10 },
       {
         Id: ChangeInfo?.Id,
       }
