@@ -189,7 +189,7 @@ export async function upsertRecordSet(
       TTL,
     }
   }
-  if (!ResourceRecordSet?.Name) throw new Error('this should never happen')
+  if (!ResourceRecordSet.Name) throw new Error('this should never happen')
   const logPrefix = `[${ResourceRecordSet.Name}]`
   const awsConfig = options.awsConfig || {}
   const Route53 = options.Route53 || new Route53Client(awsConfig)

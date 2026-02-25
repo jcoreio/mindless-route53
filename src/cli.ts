@@ -1,26 +1,25 @@
 #!/usr/bin/env node
 
-// @ts-expect-error untyped
 import yargs from 'yargs'
 import { upsertRecordSet } from './index'
 import { Route53Client } from '@aws-sdk/client-route-53'
 
-yargs
-  .command(
-    'upsert',
-    'upsert a resource record set',
-    function (yargs: any) {
+void yargs
+  .command({
+    command: 'upsert',
+    describe: 'upsert a resource record set',
+    builder: (yargs) =>
       yargs
         .usage(
           '$0 upsert --name <DNS name> --target <target IP(s) or DNS name(s)> --ttl <time to live> [--private] [--comment <comment>] [--region <AWS region>]'
         )
-        .option('n', {
-          alias: 'name',
+        .option('name', {
+          alias: 'n',
           type: 'string',
           describe: 'the DNS name for the record set',
         })
-        .option('t', {
-          alias: 'target',
+        .option('target', {
+          alias: 't',
           type: 'string',
           describe:
             'the target IP address(es) for an A record or DNS name(s) for a CNAME record',
@@ -35,8 +34,8 @@ yargs
           default: false,
           describe: 'whether to use the private hosted zone',
         })
-        .option('c', {
-          alias: 'comment',
+        .option('comment', {
+          alias: 'c',
           type: 'string',
           describe: 'a comment for the change',
         })
@@ -44,18 +43,17 @@ yargs
           type: 'string',
           describe: 'the AWS region',
         })
-        .option('q', {
-          alias: 'quiet',
+        .option('quiet', {
+          alias: 'q',
           type: 'boolean',
           describe: 'suppress output',
         })
-        .option('v', {
-          alias: 'verbose',
+        .option('verbose', {
+          alias: 'v',
           type: 'boolean',
           describe: 'enable verbose output',
-        })
-    },
-    function (argv: any) {
+        }),
+    handler: async (argv) => {
       const {
         name: Name,
         target: Target,
@@ -69,7 +67,7 @@ yargs
 
       const Route53 = region ? new Route53Client({ region }) : undefined
 
-      upsertRecordSet({
+      await upsertRecordSet({
         Name,
         Target,
         TTL,
@@ -80,17 +78,13 @@ yargs
         verbose,
       }).then(
         () => process.exit(0),
-        (err) => {
-          if (!quiet) {
-            console.error(err.stack) // eslint-disable-line no-console
-          }
+        (err: unknown) => {
+          if (!quiet) console.error(err) // eslint-disable-line no-console
           process.exit(1)
         }
       )
-    }
-  )
+    },
+  })
   .demandCommand()
   .version()
-  .help()
-
-yargs.argv
+  .help().argv

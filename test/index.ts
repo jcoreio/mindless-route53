@@ -89,8 +89,8 @@ const Route53: any = {
           z.Id === HostedZoneId ||
           (DNSName && z.Name.endsWith(DNSName.replace(/\.?$/, '.')))
       )
-      return i < 0
-        ? {
+      return i < 0 ?
+          {
             HostedZones: [],
             IsTruncated: false,
           }
@@ -139,7 +139,7 @@ describe(`findHostedZoneId`, function () {
         PrivateZone: true,
         Route53,
       })
-    ).to.not.exist
+    ).to.equal(undefined)
   })
 })
 describe(`upsertRecordSet`, function () {
@@ -379,7 +379,7 @@ describe(`upsertRecordSet`, function () {
           }
           return await Route53.send(command)
         },
-      } as any,
+      },
       log: () => {},
       waitForChanges: false,
     })
@@ -423,9 +423,8 @@ describe(`upsertPublicAndPrivateRecords`, function () {
         ],
         Comment: undefined,
       },
-      HostedZoneId: privateZone
-        ? '/hostedzone/BBBBBBBBBBBBB'
-        : '/hostedzone/AAAAAAAAAAAAA',
+      HostedZoneId:
+        privateZone ? '/hostedzone/BBBBBBBBBBBBB' : '/hostedzone/AAAAAAAAAAAAA',
     })
     expect(changeResourceRecordSetsArgs.length).to.equal(2)
     const privateChange = changeResourceRecordSetsArgs.find(
@@ -472,9 +471,8 @@ describe(`upsertPublicAndPrivateRecords`, function () {
         ],
         Comment: undefined,
       },
-      HostedZoneId: privateZone
-        ? '/hostedzone/BBBBBBBBBBBBB'
-        : '/hostedzone/AAAAAAAAAAAAA',
+      HostedZoneId:
+        privateZone ? '/hostedzone/BBBBBBBBBBBBB' : '/hostedzone/AAAAAAAAAAAAA',
     })
     expect(changeResourceRecordSetsArgs.length).to.equal(2)
     const privateChange = changeResourceRecordSetsArgs.find(
